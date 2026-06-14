@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作流水账</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --border: #e8eaf0;
+    --primary: #4361ee;
+    --primary-light: #eef0ff;
+    --text: #2d3142;
+    --muted: #8890a6;
+    --success: #06d6a0;
+    --warning: #f4a261;
+    --danger: #ef476f;
+    --shadow: 0 2px 12px rgba(67,97,238,0.08);
+    --shadow-md: 0 4px 24px rgba(67,97,238,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* Layout */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 272px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--primary);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 20px; height: 20px; fill: white; }
+  .logo-title { font-size: 17px; font-weight: 700; color: var(--text); }
+  .logo-sub { font-size: 12px; color: var(--muted); }
+
+  /* Automation status panel */
+  .auto-panel {
+    margin: 12px 12px 0;
+    background: linear-gradient(135deg, #eef0ff 0%, #f0f5ff 100%);
+    border: 1px solid #d6dcff;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .auto-panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .auto-panel-title .pulse {
+    width: 7px; height: 7px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(6,214,160,0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(6,214,160,0); }
+    100% { box-shadow: 0 0 0 0 rgba(6,214,160,0); }
+  }
+  .auto-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .auto-item:last-child { margin-bottom: 0; }
+  .auto-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+  }
+  .auto-icon.weekly { background: #dbe4ff; color: var(--primary); }
+  .auto-icon.daily { background: #d3f9d8; color: #2b8a3e; }
+  .auto-info { flex: 1; }
+  .auto-label { font-size: 12px; font-weight: 600; color: var(--text); }
+  .auto-desc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .auto-countdown {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 2px;
+  }
+
+  .nav-section { padding: 12px 12px 0; }
+  .nav-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 0 8px 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--danger);
+    color: white;
+    min-width: 16px;
+    text-align: center;
+  }
+
+  .cal-section { padding: 16px 12px; border-top: 1px solid var(--border); margin-top: auto; }
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-nav button {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 16px; padding: 2px 6px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  .cal-nav button:hover { background: var(--bg); color: var(--text); }
+  .cal-month { font-size: 13px; font-weight: 600; color: var(--text); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .cal-dow { font-size: 10px; color: var(--muted); padding: 2px 0; font-weight: 600; }
+  .cal-day {
+    font-size: 12px;
+    padding: 5px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text);
+  }
+  .cal-day:hover { background: var(--bg); }
+  .cal-day.empty { cursor: default; }
+  .cal-day.today { background: var(--primary); color: white; font-weight: 700; }
+  .cal-day.selected { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .cal-day.has-log { position: relative; }
+  .cal-day.has-log::after {
+    content: '';
+    width: 4px; height: 4px;
+    background: var(--success);
+    border-radius: 50%;
+    position: absolute;
+    bottom: 1px;
+    left: 50%; transform: translateX(-50%);
+  }
+  .cal-day.today.has-log::after { background: rgba(255,255,255,0.7); }
+
+  /* Main content */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-left { display: flex; flex-direction: column; }
+  .page-title { font-size: 18px; font-weight: 700; color: var(--text); }
+  .page-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    font-family: inherit;
+  }
+  .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #3451d1; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #eee; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { background: #05b88a; }
+  .btn-warning { background: var(--warning); color: white; }
+  .btn-warning:hover { background: #e0914a; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #d63b5c; }
+
+  .btn-group { position: relative; display: inline-flex; }
+  .btn-group .btn { border-radius: 0; }
+  .btn-group .btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .btn-group .btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .btn-group .btn + .btn { margin-left: -1px; }
+
+  .dropdown { position: relative; display: inline-flex; }
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    padding: 4px;
+    min-width: 180px;
+    z-index: 100;
+    display: none;
+  }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.1s;
+    border: none;
+    background: none;
+    width: 100%;
+    font-family: inherit;
+    text-align: left;
+  }
+  .dropdown-item:hover { background: var(--primary-light); color: var(--primary); }
+  .dropdown-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* Daily log editor */
+  .editor-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .editor-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .editor-date { font-size: 15px; font-weight: 700; color: var(--text); }
+  .editor-weekday { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .save-status {
+    font-size: 12px;
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .save-status.show { opacity: 1; }
+
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .toolbar-btn {
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 13px;
+    color: var(--muted);
+    transition: all 0.15s;
+    font-family: inherit;
+    font-weight: 600;
+  }
+  .toolbar-btn:hover { background: var(--card); color: var(--text); }
+
+  #log-editor {
+    width: 100%;
+    min-height: 420px;
+    padding: 20px 24px;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    font-family: 'PingFang SC', 'Microsoft YaHei', monospace;
+    background: var(--card);
+  }
+  #log-editor::placeholder { color: var(--muted); }
+
+  .editor-footer {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* Weekly view */
+  .weekly-container { display: flex; flex-direction: column; gap: 20px; }
+  .week-header-card {
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .week-header-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -20px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+  }
+  .week-header-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; position: relative; }
+  .week-header-card p { font-size: 13px; opacity: 0.8; position: relative; }
+
+  .week-actions { display: flex; gap: 10px; margin-top: 16px; position: relative; flex-wrap: wrap; }
+  .btn-white {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .btn-white:hover { background: rgba(255,255,255,0.3); }
+
+  .summary-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .summary-card-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .summary-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: #e8faf4; color: #06a87e; }
+
+  .summary-content {
+    padding: 20px 24px;
+    font-size: 14px;
+    line-height: 1.9;
+    color: var(--text);
+    white-space: pre-wrap;
+    min-height: 120px;
+  }
+  .summary-content.loading {
+    color: var(--muted);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .day-logs-grid { display: flex; flex-direction: column; gap: 12px; }
+  .day-log-item {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .day-log-item:hover { box-shadow: var(--shadow-md); }
+  .day-log-header {
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .day-log-date { font-size: 13px; font-weight: 700; color: var(--text); }
+  .day-log-chevron { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+  .day-log-item.open .day-log-chevron { transform: rotate(180deg); }
+  .day-log-body {
+    display: none;
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+  .day-log-item.open .day-log-body { display: block; }
+  .day-log-empty { color: var(--muted); font-style: italic; }
+
+  /* History list */
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .history-item:hover { box-shadow: var(--shadow-md); }
+  .history-date { font-size: 14px; font-weight: 600; color: var(--text); }
+  .history-preview { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+  .history-arrow { color: var(--muted); font-size: 14px; }
+  .history-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transform: translateY(60px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.warning { background: var(--warning); }
+
+  /* View toggles */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .weeks-list { display: flex; flex-direction: column; gap: 8px; }
+  .week-item {
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .week-item:hover { box-shadow: var(--shadow-md); }
+  .week-date { font-size: 14px; font-weight: 600; color: var(--text); }
+  .week-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* Daily reminder banner */
+  .reminder-banner {
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    border: 1px solid #ffcc80;
+    border-radius: var(--radius-sm);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #e65100;
+  }
+  .reminder-banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .reminder-banner .dismiss { margin-left: auto; cursor: pointer; opacity: 0.6; }
+  .reminder-banner .dismiss:hover { opacity: 1; }
+  .reminder-banner.hidden { display: none; }
+
+  /* Export modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+    width: 420px;
+    max-width: 90vw;
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    background: none; border: none;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+  .modal-body { padding: 20px 24px; }
+  .export-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 8px;
+    background: none;
+    width: 100%;
+    font-family: inherit;
+    text-align: left;
+  }
+  .export-option:hover { border-color: var(--primary); background: var(--primary-light); }
+  .export-option-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+  .export-option-icon.md { background: #e8faf4; color: #06a87e; }
+  .export-option-icon.html { background: #dbe4ff; color: var(--primary); }
+  .export-option-icon.txt { background: #fff3e0; color: #e65100; }
+  .export-option-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .export-option-desc { font-size: 12px; color: var(--muted); margin-top: 1px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
+        </div>
+        <div>
+          <div class="logo-title">工作流水账</div>
+          <div class="logo-sub">记录每日工作</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automation Status Panel -->
+    <div class="auto-panel">
+      <div class="auto-panel-title">
+        <div class="pulse"></div>
+        自动化已启用
+      </div>
+      <div class="auto-item">
+        <div class="auto-icon weekly">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+        </div>
+        <div class="auto-info">
+          <div class="auto-label">周六 12:00 周报汇总</div>
+          <div class="auto-desc">自动生成本周清单 + 下周计划</div>
+          <div class="auto-countdown" id="weekly-countdown">计算中...</div>
+        </div>
+      </div>
+      <div class="auto-item">
+        <div class="auto-icon daily">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+        </div>
+        <div class="auto-info">
+          <div class="auto-label">每日 09:00 日志提醒</div>
+          <div class="auto-desc">提醒记录当日工作流水</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">导航</div>
+      <div class="nav-item active" data-view="daily" onclick="switchView('daily', this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+        今日日志
+        <span class="nav-badge" id="today-badge" style="display:none">!</span>
+      </div>
+      <div class="nav-item" data-view="weekly" onclick="switchView('weekly', this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+        本周汇总
+      </div>
+      <div class="nav-item" data-view="history" onclick="switchView('history', this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        历史记录
+      </div>
+      <div class="nav-item" data-view="weekhistory" onclick="switchView('weekhistory', this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        周报历史
+      </div>
+    </div>
+
+    <div class="cal-section">
+      <div class="cal-nav">
+        <button onclick="calPrev()">&#8249;</button>
+        <span class="cal-month" id="cal-month"></span>
+        <button onclick="calNext()">&#8250;</button>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">一</div><div class="cal-dow">二</div><div class="cal-dow">三</div>
+        <div class="cal-dow">四</div><div class="cal-dow">五</div><div class="cal-dow">六</div><div class="cal-dow">日</div>
+      </div>
+      <div class="cal-grid" id="cal-days"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Today view -->
+    <div id="view-daily" class="view active">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="page-title" id="daily-title">今日日志</div>
+          <div class="page-sub" id="daily-sub"></div>
+        </div>
+        <div class="topbar-right">
+          <span class="save-status" id="save-status">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            已保存
+          </span>
+          <div class="dropdown">
+            <button class="btn btn-secondary" onclick="toggleDropdown('export-daily-dropdown')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              导出
+            </button>
+            <div class="dropdown-menu" id="export-daily-dropdown">
+              <button class="dropdown-item" onclick="exportDailyLog('md')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                导出为 Markdown (.md)
+              </button>
+              <button class="dropdown-item" onclick="exportDailyLog('txt')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                导出为纯文本 (.txt)
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveLog()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+            保存
+          </button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="reminder-banner" id="reminder-banner">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <span id="reminder-text">今天还没写日志哦，快来记录一下吧！</span>
+          <span class="dismiss" onclick="document.getElementById('reminder-banner').classList.add('hidden')">✕</span>
+        </div>
+        <div class="editor-card">
+          <div class="editor-header">
+            <div>
+              <div class="editor-date" id="editor-date-display"></div>
+              <div class="editor-weekday" id="editor-weekday"></div>
+            </div>
+          </div>
+          <div class="editor-toolbar">
+            <button class="toolbar-btn" onclick="insertText('## ')">标题</button>
+            <button class="toolbar-btn" onclick="insertText('- ')">列表</button>
+            <button class="toolbar-btn" onclick="insertText('- [ ] ')">待办</button>
+            <button class="toolbar-btn" onclick="insertText('- [x] ')">完成</button>
+            <button class="toolbar-btn" onclick="insertText('**', '**')"><b>加粗</b></button>
+            <button class="toolbar-btn" onclick="insertText('> ')">引用</button>
+            <button class="toolbar-btn" onclick="insertTimeStamp()">时间戳</button>
+          </div>
+          <textarea id="log-editor" placeholder="记录今天的工作内容...
+
+例如：
+## 上午
+- 完成了 XXX 功能的开发
+- 修复了 XXX bug
+- 与团队开会讨论 XXX 方案
+
+## 下午
+- 编写 XXX 文档
+- 代码 Review
+
+## 待跟进
+- [ ] 明天需要完成 XXX"></textarea>
+          <div class="editor-footer">
+            <span id="char-count">0 字</span>
+            <span>Ctrl+S 保存 · 自动保存已开启</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly view -->
+    <div id="view-weekly" class="view">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="page-title">本周汇总</div>
+          <div class="page-sub" id="weekly-range-sub"></div>
+        </div>
+        <div class="topbar-right">
+          <div class="dropdown">
+            <button class="btn btn-secondary" onclick="toggleDropdown('export-weekly-dropdown')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              导出周报
+            </button>
+            <div class="dropdown-menu" id="export-weekly-dropdown">
+              <button class="dropdown-item" onclick="exportWeeklyReport('md')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                导出为 Markdown (.md)
+              </button>
+              <button class="dropdown-item" onclick="exportWeeklyReport('html')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                导出为 HTML (可打印)
+              </button>
+              <button class="dropdown-item" onclick="exportWeeklyReport('txt')">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/></svg>
+                导出为纯文本 (.txt)
+              </button>
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadWeekly()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            刷新
+          </button>
+          <button class="btn btn-success" onclick="generateSummary()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            AI 生成汇总
+          </button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="weekly-container">
+          <div class="week-header-card">
+            <h2 id="weekly-title">本周工作汇总</h2>
+            <p id="weekly-range-info"></p>
+            <div class="week-actions">
+              <button class="btn btn-white" onclick="generateSummary()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                一键生成本周汇总 + 下周计划
+              </button>
+              <button class="btn btn-white" onclick="exportWeeklyReport('html')">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                导出为可打印周报
+              </button>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <div class="summary-card-title">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+                本周工作清单
+                <span class="tag tag-blue">AI 汇总</span>
+              </div>
+            </div>
+            <div class="summary-content" id="summary-work">点击「AI 生成汇总」来汇总本周工作清单...</div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <div class="summary-card-title">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                下周工作计划
+                <span class="tag tag-green">AI 规划</span>
+              </div>
+            </div>
+            <div class="summary-content" id="summary-plan">点击「AI 生成汇总」来生成下周工作计划...</div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <div class="summary-card-title">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 3h-1V1h-2v2H8V1H6v2H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+                本周每日记录
+              </div>
+            </div>
+            <div style="padding: 16px 20px;">
+              <div class="day-logs-grid" id="day-logs-grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History view -->
+    <div id="view-history" class="view">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="page-title">历史日志</div>
+          <div class="page-sub">所有日志记录</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary" onclick="exportAllLogs()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            导出全部日志
+          </button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- Weekly history view -->
+    <div id="view-weekhistory" class="view">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="page-title">周报历史</div>
+          <div class="page-sub">所有周报汇总记录</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary" onclick="exportAllWeeklies()">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            导出全部周报
+          </button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="weeks-list" id="weeks-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">导出</div>
+      <button class="modal-close" onclick="closeModal()">&#10005;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:3456';
+let currentDate = formatDate(new Date());
+let calYear, calMonth;
+let logDates = new Set();
+let autoSaveTimer = null;
+let currentWeeklyStart = '';
+
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+const WEEKDAYS = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+
+async function init() {
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  await loadLogDates();
+  renderCalendar();
+  await loadDailyLog(currentDate);
+  updateDailyMeta();
+  checkTodayLog();
+  startCountdown();
+  setInterval(startCountdown, 60000);
+}
+
+// ======== Countdown & Reminder ========
+function startCountdown() {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+  let nextSat = new Date(now);
+
+  if (dayOfWeek === 6 && now.getHours() < 12) {
+    // Today is Saturday before 12, countdown to today
+  } else {
+    // Find next Saturday
+    const daysUntilSat = dayOfWeek === 0 ? 6 : (6 - dayOfWeek + (now.getHours() >= 12 && dayOfWeek === 6 ? 7 : 0));
+    if (dayOfWeek === 6 && now.getHours() >= 12) {
+      nextSat.setDate(now.getDate() + 7);
+    } else {
+      nextSat.setDate(now.getDate() + ((6 - dayOfWeek + 7) % 7 || 7));
+      if (dayOfWeek === 6) nextSat.setDate(now.getDate()); // today is sat before 12
+    }
+    if (dayOfWeek !== 6) {
+      nextSat.setDate(now.getDate() + ((6 - dayOfWeek + 7) % 7));
+    }
+  }
+
+  // Simpler approach: find next Saturday 12:00
+  nextSat = new Date(now);
+  let daysToAdd = (6 - now.getDay() + 7) % 7;
+  if (daysToAdd === 0 && now.getHours() >= 12) daysToAdd = 7;
+  nextSat.setDate(now.getDate() + daysToAdd);
+  nextSat.setHours(12, 0, 0, 0);
+
+  const diff = nextSat - now;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+
+  const el = document.getElementById('weekly-countdown');
+  if (days === 0) {
+    el.textContent = `${hours} 小时 ${minutes} 分钟后汇总`;
+    if (hours === 0 && minutes < 60) {
+      el.style.color = 'var(--danger)';
+    }
+  } else {
+    el.textContent = `${days} 天 ${hours} 小时后汇总`;
+  }
+}
+
+async function checkTodayLog() {
+  const today = formatDate(new Date());
+  const hasLog = logDates.has(today);
+  const badge = document.getElementById('today-badge');
+  const banner = document.getElementById('reminder-banner');
+  const reminderText = document.getElementById('reminder-text');
+
+  if (!hasLog) {
+    badge.style.display = 'inline';
+    const hour = new Date().getHours();
+    if (hour >= 17) {
+      reminderText.textContent = '今天还没写日志！下班前记得记录今天的工作哦！';
+    } else if (hour >= 12) {
+      reminderText.textContent = '上午的工作记录了吗？趁午休前写一下吧！';
+    } else {
+      reminderText.textContent = '新的一天开始了！工作途中随时记录流水账吧。';
+    }
+  } else {
+    badge.style.display = 'none';
+    banner.classList.add('hidden');
+  }
+}
+
+// ======== Daily Log ========
+function updateDailyMeta() {
+  const d = parseDate(currentDate);
+  document.getElementById('daily-title').textContent = currentDate === formatDate(new Date()) ? '今日日志' : `${currentDate} 日志`;
+  document.getElementById('daily-sub').textContent = WEEKDAYS[d.getDay()];
+  document.getElementById('editor-date-display').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  document.getElementById('editor-weekday').textContent = WEEKDAYS[d.getDay()];
+}
+
+async function loadLogDates() {
+  const r = await fetch(`${API}/api/logs`);
+  const data = await r.json();
+  logDates = new Set(data.dates);
+}
+
+async function loadDailyLog(date) {
+  const r = await fetch(`${API}/api/log?date=${date}`);
+  const data = await r.json();
+  document.getElementById('log-editor').value = data.content;
+  updateCharCount();
+}
+
+async function saveLog() {
+  const content = document.getElementById('log-editor').value;
+  await fetch(`${API}/api/log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: currentDate, content })
+  });
+  if (content.trim()) logDates.add(currentDate);
+  else logDates.delete(currentDate);
+  renderCalendar();
+  checkTodayLog();
+  const status = document.getElementById('save-status');
+  status.classList.add('show');
+  setTimeout(() => status.classList.remove('show'), 2000);
+  showToast('已保存', 'success');
+}
+
+function insertText(before, after = '') {
+  const ta = document.getElementById('log-editor');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.substring(start, end);
+  const newText = before + selected + after;
+  ta.value = ta.value.substring(0, start) + newText + ta.value.substring(end);
+  ta.selectionStart = start + before.length;
+  ta.selectionEnd = start + before.length + selected.length;
+  ta.focus();
+  updateCharCount();
+}
+
+function insertTimeStamp() {
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} `;
+  insertText(ts);
+}
+
+function updateCharCount() {
+  const len = document.getElementById('log-editor').value.length;
+  document.getElementById('char-count').textContent = `${len} 字`;
+}
+
+document.getElementById('log-editor').addEventListener('input', () => {
+  updateCharCount();
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveLog, 2000);
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveLog(); }
+});
+
+// ======== Calendar ========
+function renderCalendar() {
+  document.getElementById('cal-month').textContent = `${calYear}年${MONTHS[calMonth]}`;
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = formatDate(new Date());
+
+  let html = '';
+  for (let i = 0; i < offset; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'cal-day';
+    if (dateStr === today) cls += ' today';
+    else if (dateStr === currentDate) cls += ' selected';
+    if (logDates.has(dateStr)) cls += ' has-log';
+    html += `<div class="${cls}" onclick="selectDate('${dateStr}')">${d}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+
+async function selectDate(date) {
+  currentDate = date;
+  updateDailyMeta();
+  renderCalendar();
+  await loadDailyLog(date);
+  const navItem = document.querySelector('.nav-item[data-view="daily"]');
+  if (!navItem.classList.contains('active')) switchView('daily', navItem);
+}
+
+// ======== Views ========
+function switchView(view, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`view-${view}`).classList.add('active');
+  closeAllDropdowns();
+
+  if (view === 'weekly') loadWeekly();
+  if (view === 'history') loadHistory();
+  if (view === 'weekhistory') loadWeeklyHistory();
+}
+
+// ======== Weekly ========
+async function loadWeekly() {
+  const r = await fetch(`${API}/api/week-range?date=${currentDate}`);
+  const { start, end } = await r.json();
+  currentWeeklyStart = start;
+  document.getElementById('weekly-range-info').textContent = `${start} 至 ${end}`;
+  document.getElementById('weekly-range-sub').textContent = `${start} 至 ${end}`;
+  document.getElementById('weekly-title').textContent = `本周工作汇总（${start}）`;
+
+  const sr = await fetch(`${API}/api/weekly?date=${currentDate}`);
+  const sd = await sr.json();
+  if (sd.content) parseSummary(sd.content);
+
+  const lr = await fetch(`${API}/api/week-logs?date=${currentDate}`);
+  const ld = await lr.json();
+  renderDayLogs(ld.logs, ld.start, ld.end);
+}
+
+function parseSummary(content) {
+  const workMatch = content.match(/##\s*本周工作清单[\s\S]*?(?=##\s*下周|$)/);
+  const planMatch = content.match(/##\s*下周工作计划[\s\S]*/);
+  if (workMatch) document.getElementById('summary-work').textContent = workMatch[0].replace(/^##\s*本周工作清单\s*\n?/, '').trim();
+  if (planMatch) document.getElementById('summary-plan').textContent = planMatch[0].replace(/^##\s*下周工作计划\s*\n?/, '').trim();
+  if (!workMatch && !planMatch && content.trim()) {
+    document.getElementById('summary-work').textContent = content;
+  }
+}
+
+function renderDayLogs(logs, start, end) {
+  const dates = getDatesInRange(start, end);
+  const WDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+  let html = '';
+  dates.forEach(d => {
+    const content = logs[d] || '';
+    const wd = WDAYS[parseDate(d).getDay()];
+    html += `<div class="day-log-item" onclick="this.classList.toggle('open')">
+      <div class="day-log-header">
+        <div class="day-log-date">${d} ${wd}</div>
+        <div class="day-log-chevron">▼</div>
+      </div>
+      <div class="day-log-body">${content.trim() ? escapeHtml(content) : '<span class="day-log-empty">暂无记录</span>'}</div>
+    </div>`;
+  });
+  document.getElementById('day-logs-grid').innerHTML = html;
+}
+
+function getDatesInRange(start, end) {
+  const dates = [];
+  let cur = new Date(start + 'T00:00:00');
+  const endD = new Date(end + 'T00:00:00');
+  while (cur <= endD) {
+    dates.push(formatDate(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function generateSummary() {
+  const workEl = document.getElementById('summary-work');
+  const planEl = document.getElementById('summary-plan');
+  workEl.innerHTML = '<div class="loading"><div class="spinner"></div> AI 正在分析本周日志...</div>';
+  workEl.classList.add('loading');
+  planEl.innerHTML = '<div class="loading"><div class="spinner"></div> 生成中...</div>';
+  planEl.classList.add('loading');
+
+  const r = await fetch(`${API}/api/week-logs?date=${currentDate}`);
+  const { start, end, logs } = await r.json();
+  const logsText = Object.entries(logs).map(([d, c]) => `### ${d}\n${c}`).join('\n\n');
+
+  if (!logsText.trim()) {
+    workEl.textContent = '本周暂无工作日志记录，请先记录每日工作内容。';
+    workEl.classList.remove('loading');
+    planEl.textContent = '本周暂无工作日志记录，无法生成计划。';
+    planEl.classList.remove('loading');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API}/api/ai-summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start, end, logs })
+    });
+    const data = await resp.json();
+    if (data.summary) {
+      workEl.classList.remove('loading');
+      planEl.classList.remove('loading');
+      parseSummary(data.summary);
+      const sr = await fetch(`${API}/api/week-range?date=${currentDate}`);
+      const { start: ws } = await sr.json();
+      await fetch(`${API}/api/weekly`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekStart: ws, content: data.summary })
+      });
+      showToast('周报已生成并保存！', 'success');
+    } else { throw new Error('no summary'); }
+  } catch(e) {
+    workEl.classList.remove('loading');
+    planEl.classList.remove('loading');
+    workEl.textContent = '请使用 WorkBuddy 自动化功能来生成周报。本周日志已保存，每周六 12:00 自动汇总。';
+    planEl.textContent = '也可以直接在 WorkBuddy 中让 AI 帮你整理本周工作。';
+  }
+}
+
+// ======== History ========
+async function loadHistory() {
+  const r = await fetch(`${API}/api/logs`);
+  const data = await r.json();
+  const list = document.getElementById('history-list');
+  if (!data.dates.length) {
+    list.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><p>暂无日志记录</p></div>`;
+    return;
+  }
+  let html = '';
+  for (const date of data.dates) {
+    const lr = await fetch(`${API}/api/log?date=${date}`);
+    const ld = await lr.json();
+    const preview = ld.content.split('\n').find(l => l.trim() && !l.startsWith('#')) || '(无内容预览)';
+    const d = parseDate(date);
+    const wd = WEEKDAYS[d.getDay()];
+    html += `<div class="history-item">
+      <div onclick="selectDate('${date}')" style="flex:1;cursor:pointer">
+        <div class="history-date">${date} ${wd}</div>
+        <div class="history-preview">${escapeHtml(preview.trim())}</div>
+      </div>
+      <div class="history-actions">
+        <button class="icon-btn" title="导出" onclick="exportDailyLogByDate('${date}')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+        <span class="history-arrow" onclick="selectDate('${date}')" style="cursor:pointer">›</span>
+      </div>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+async function loadWeeklyHistory() {
+  const r = await fetch(`${API}/api/weeklies`);
+  const data = await r.json();
+  const list = document.getElementById('weeks-list');
+  if (!data.weeks.length) {
+    list.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg><p>暂无周报记录</p></div>`;
+    return;
+  }
+  let html = '';
+  for (const weekStart of data.weeks) {
+    const d = parseDate(weekStart);
+    const end = new Date(d); end.setDate(d.getDate() + 6);
+    html += `<div class="week-item">
+      <div onclick="viewWeekSummary('${weekStart}')" style="flex:1;cursor:pointer">
+        <div class="week-date">第 ${getWeekNumber(d)} 周</div>
+        <div class="week-sub">${weekStart} 至 ${formatDate(end)}</div>
+      </div>
+      <div class="history-actions">
+        <button class="icon-btn" title="导出 HTML" onclick="exportWeeklyByStart('${weekStart}','html')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function getWeekNumber(d) {
+  const onejan = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+}
+
+function viewWeekSummary(weekStart) {
+  currentDate = weekStart;
+  const navItem = document.querySelector('.nav-item[data-view="weekly"]');
+  switchView('weekly', navItem);
+}
+
+// ======== Export Functions ========
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast(`已导出 ${filename}`, 'success');
+}
+
+async function exportDailyLog(format) {
+  closeAllDropdowns();
+  const content = document.getElementById('log-editor').value;
+  if (!content.trim()) { showToast('当日无日志内容', 'warning'); return; }
+
+  const date = currentDate;
+  if (format === 'md') {
+    downloadFile(`工作日志-${date}.md`, content, 'text/markdown');
+  } else if (format === 'txt') {
+    downloadFile(`工作日志-${date}.txt`, content, 'text/plain');
+  }
+}
+
+async function exportDailyLogByDate(date) {
+  const r = await fetch(`${API}/api/log?date=${date}`);
+  const data = await r.json();
+  if (!data.content.trim()) { showToast('该日无日志内容', 'warning'); return; }
+  downloadFile(`工作日志-${date}.md`, data.content, 'text/markdown');
+}
+
+async function exportWeeklyReport(format) {
+  closeAllDropdowns();
+  const sr = await fetch(`${API}/api/weekly?date=${currentDate}`);
+  const sd = await sr.json();
+
+  if (!sd.content || !sd.content.trim()) {
+    showToast('请先生成周报再导出', 'warning');
+    return;
+  }
+
+  const weekStart = sd.weekStart || currentWeeklyStart;
+  const endD = new Date(parseDate(weekStart));
+  endD.setDate(endD.getDate() + 6);
+  const weekEnd = formatDate(endD);
+
+  if (format === 'md') {
+    const md = `# 周报：${weekStart} 至 ${weekEnd}\n\n${sd.content}`;
+    downloadFile(`周报-${weekStart}.md`, md, 'text/markdown');
+  } else if (format === 'html') {
+    const html = generateWeeklyHTML(sd.content, weekStart, weekEnd);
+    downloadFile(`周报-${weekStart}.html`, html, 'text/html');
+  } else if (format === 'txt') {
+    const txt = `周报：${weekStart} 至 ${weekEnd}\n\n${sd.content}`;
+    downloadFile(`周报-${weekStart}.txt`, txt, 'text/plain');
+  }
+}
+
+async function exportWeeklyByStart(weekStart, format) {
+  currentDate = weekStart;
+  await exportWeeklyReport(format);
+}
+
+function generateWeeklyHTML(content, weekStart, weekEnd) {
+  // Simple markdown-to-HTML for the report
+  let body = escapeHtml(content);
+  body = body.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  body = body.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  body = body.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  body = body.replace(/^- \[x\] (.+)$/gm, '<div class="task done"><input type="checkbox" checked disabled> $1</div>');
+  body = body.replace(/^- \[ \] (.+)$/gm, '<div class="task"><input type="checkbox" disabled> $1</div>');
+  body = body.replace(/^- (.+)$/gm, '<div class="list-item">- $1</div>');
+  body = body.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  body = body.replace(/\n{2,}/g, '<br><br>');
+  body = body.replace(/\n/g, '<br>');
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>周报 ${weekStart} 至 ${weekEnd}</title>
+<style>
+  @page { size: A4; margin: 2cm; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px;
+    color: #2d3142;
+    line-height: 1.8;
+    font-size: 14px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #4361ee;
+  }
+  .header h1 { font-size: 24px; color: #4361ee; margin-bottom: 4px; }
+  .header p { color: #8890a6; font-size: 13px; }
+  h2 { color: #4361ee; font-size: 18px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #e8eaf0; }
+  h3 { color: #2d3142; font-size: 15px; margin: 16px 0 8px; }
+  .task { padding: 4px 0 4px 8px; }
+  .task.done { color: #8890a6; text-decoration: line-through; }
+  .list-item { padding: 2px 0 2px 16px; }
+  blockquote { border-left: 3px solid #4361ee; padding-left: 12px; color: #8890a6; margin: 8px 0; }
+  strong { color: #2d3142; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e8eaf0; text-align: center; color: #8890a6; font-size: 12px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>周报</h1>
+  <p>${weekStart} 至 ${weekEnd}</p>
+</div>
+${body}
+<div class="footer">由「工作流水账」自动生成</div>
+</body>
+</html>`;
+}
+
+async function exportAllLogs() {
+  const r = await fetch(`${API}/api/logs`);
+  const data = await r.json();
+  if (!data.dates.length) { showToast('暂无日志', 'warning'); return; }
+
+  let md = '# 全部工作日志\n\n';
+  for (const date of data.dates) {
+    const lr = await fetch(`${API}/api/log?date=${date}`);
+    const ld = await lr.json();
+    if (ld.content.trim()) {
+      md += `---\n## ${date}\n\n${ld.content}\n\n`;
+    }
+  }
+  downloadFile('全部工作日志.md', md, 'text/markdown');
+}
+
+async function exportAllWeeklies() {
+  const r = await fetch(`${API}/api/weeklies`);
+  const data = await r.json();
+  if (!data.weeks.length) { showToast('暂无周报', 'warning'); return; }
+
+  let md = '# 全部周报汇总\n\n';
+  for (const weekStart of data.weeks) {
+    const wr = await fetch(`${API}/api/weekly?date=${weekStart}`);
+    const wd = await wr.json();
+    if (wd.content.trim()) {
+      const d = parseDate(weekStart);
+      const end = new Date(d); end.setDate(d.getDate() + 6);
+      md += `---\n# 周报：${weekStart} 至 ${formatDate(end)}\n\n${wd.content}\n\n`;
+    }
+  }
+  downloadFile('全部周报汇总.md', md, 'text/markdown');
+}
+
+// ======== Dropdown & Modal ========
+function toggleDropdown(id) {
+  const menu = document.getElementById(id);
+  const isOpen = menu.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) closeAllDropdowns();
+});
+
+function closeModal() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+
+// ======== Toast ========
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+init();
+</script>
+</body>
+</html>
